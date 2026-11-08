@@ -117,6 +117,28 @@ export const OWNERS = {
   ],
 };
 
+/** The options of the contacts' hs_lead_status property: the value HubSpot stores, and its label. */
+export const LEAD_STATUS = {
+  name: "hs_lead_status",
+  options: [
+    { label: "New", value: "NEW" },
+    { label: "Attempted to contact", value: "ATTEMPTED_TO_CONTACT" },
+  ],
+};
+
+export const DEAL_PIPELINES = {
+  results: [
+    {
+      id: "default",
+      label: "Sales Pipeline",
+      stages: [
+        { id: "5830995183", label: "Qualified", displayOrder: 0 },
+        { id: "5830995184", label: "Proposal sent", displayOrder: 1 },
+      ],
+    },
+  ],
+};
+
 export const AMY = {
   id: "501",
   properties: { firstname: "Amy", lastname: "Adams", email: "amy@example.com", phone: "070 1" },

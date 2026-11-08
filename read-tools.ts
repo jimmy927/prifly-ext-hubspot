@@ -8,7 +8,6 @@ import {
   field,
   type Hs,
   idArg,
-  isRecord,
   nextCursor,
   OBJECT_ENUM,
   objectArg,
@@ -16,6 +15,7 @@ import {
   text,
   withKey,
 } from "./hubspot";
+import { allOwners, labelled, lookupsOf, type Pipeline, pipelinesOf } from "./lookups";
 import { DATA_NOTE, DEFAULT_PROPERTIES, plain, renderRow, rowsOf } from "./records";
 import { propertiesArg } from "./search-tool";
 
@@ -95,16 +95,18 @@ async function runRecord(args: Args, api: ExtensionApi, hs: Hs): Promise<string>
   const id = idArg(args);
   const others = OBJECT_ENUM.filter((each) => each !== object);
   const path = `/crm/v3/objects/${object}/${id}`;
+  const properties = propertiesArg(args, DEFAULT_PROPERTIES[object]);
   const reply = await hs("GET", path, {
     query: {
-      properties: propertiesArg(args, DEFAULT_PROPERTIES[object]).join(","),
+      properties: properties.join(","),
       associations: [...Object.keys(ACTIVITIES), ...others].join(","),
     },
   });
   if (reply.status === 404) return `No ${object} record with id ${id}.`;
   if (!reply.ok) return explain(reply, "GET", path);
-  const [row] = rowsOf({ results: [reply.data] });
-  if (row === undefined) return `HubSpot answered without a record for ${object} ${id}.`;
+  const [found] = rowsOf({ results: [reply.data] });
+  if (found === undefined) return `HubSpot answered without a record for ${object} ${id}.`;
+  const [row = found] = await labelled([found], lookupsOf(hs));
   const associations = field(reply.data, "associations");
   const related = others.flatMap((kind) => associatedLine(associations, kind) ?? []);
   const activity: string[] = [];
@@ -112,27 +114,10 @@ async function runRecord(args: Args, api: ExtensionApi, hs: Hs): Promise<string>
     activity.push(...(await activityOf(hs, kind, idsOf(associations, kind))));
   }
   return [
-    renderRow(api, object, row),
+    renderRow(api, object, row, propertiesArg(args, [])),
     ...(related.length === 0 ? [] : ["Associated:", ...related.map((line) => `  ${line}`)]),
     ...(activity.length === 0 ? ["No notes, calls, emails, meetings or tasks."] : activity),
   ].join("\n");
-}
-
-/** Every owner, paging through HubSpot's cursor. */
-async function allOwners(hs: Hs): Promise<{ rows: Record<string, unknown>[] } | string> {
-  const rows: Record<string, unknown>[] = [];
-  let after: string | undefined;
-  for (let page = 0; page < 10; page++) {
-    const reply = await hs("GET", "/crm/v3/owners", {
-      query: { limit: "100", ...(after === undefined ? {} : { after }) },
-    });
-    if (!reply.ok) return explain(reply, "GET", "/crm/v3/owners");
-    const results = field(reply.data, "results");
-    if (Array.isArray(results)) rows.push(...results.filter(isRecord));
-    after = nextCursor(reply.data) ?? undefined;
-    if (after === undefined) break;
-  }
-  return { rows };
 }
 
 export function ownersTool(deps: Deps): ExtensionTool {
@@ -152,28 +137,6 @@ export function ownersTool(deps: Deps): ExtensionTool {
         return [`${lines.length} owners:`, ...lines].join("\n");
       }),
   };
-}
-
-type Stage = { id: string; label: string; order: number };
-type Pipeline = { id: string; label: string; stages: Stage[] };
-
-function pipelinesOf(data: unknown): Pipeline[] {
-  const results = field(data, "results");
-  if (!Array.isArray(results)) return [];
-  return results.map((each) => {
-    const stages = field(each, "stages");
-    return {
-      id: str(field(each, "id")) ?? "?",
-      label: str(field(each, "label")) ?? "?",
-      stages: (Array.isArray(stages) ? stages : [])
-        .map((stage) => ({
-          id: str(field(stage, "id")) ?? "?",
-          label: str(field(stage, "label")) ?? "?",
-          order: Number(field(stage, "displayOrder")) || 0,
-        }))
-        .sort((a, b) => a.order - b.order),
-    };
-  });
 }
 
 const MAX_DEAL_PAGES = 10;

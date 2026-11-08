@@ -16,6 +16,7 @@ import {
   text,
   withKey,
 } from "./hubspot";
+import { labelled, lookupsOf } from "./lookups";
 import { DATA_NOTE, DEFAULT_PROPERTIES, renderRow, rowsOf } from "./records";
 
 const OPERATORS = [
@@ -144,5 +145,7 @@ async function runSearch(args: Args, api: ExtensionApi, hs: Hs): Promise<string>
   const next = nextCursor(reply.data);
   const head = `${rows.length} of ${typeof total === "number" ? total : "?"} ${object}:`;
   const more = next === null ? "That is all of them." : `More: call again with after="${next}".`;
-  return [head, ...rows.map((row) => renderRow(api, object, row)), more].join("\n\n");
+  const shown = await labelled(rows, lookupsOf(hs));
+  const asked = propertiesArg(args, []);
+  return [head, ...shown.map((row) => renderRow(api, object, row, asked)), more].join("\n\n");
 }

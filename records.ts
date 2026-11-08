@@ -17,7 +17,10 @@ export const DEFAULT_PROPERTIES: Record<ObjectName, string[]> = {
     "company",
     "jobtitle",
     "lifecyclestage",
+    "hs_lead_status",
     "hubspot_owner_id",
+    "createdate",
+    "lastmodifieddate",
   ],
   companies: [
     "name",
@@ -28,8 +31,19 @@ export const DEFAULT_PROPERTIES: Record<ObjectName, string[]> = {
     "phone",
     "numberofemployees",
     "hubspot_owner_id",
+    "createdate",
+    "hs_lastmodifieddate",
   ],
-  deals: ["dealname", "amount", "dealstage", "pipeline", "closedate", "hubspot_owner_id"],
+  deals: [
+    "dealname",
+    "amount",
+    "dealstage",
+    "pipeline",
+    "closedate",
+    "hubspot_owner_id",
+    "createdate",
+    "hs_lastmodifieddate",
+  ],
 };
 
 export type Row = { id: string; properties: Record<string, string> };
@@ -70,16 +84,23 @@ const IN_LABEL: Record<ObjectName, string[]> = {
   deals: ["dealname"],
 };
 
-/** One record as text: its label and link, then its non-empty properties. */
-export function renderRow(api: ExtensionApi, object: ObjectName, row: Row): string {
+/** The `hs_` properties worth showing without being asked for; HubSpot adds the rest (hs_object_id…) to every answer. */
+const SHOWN_HS = ["hs_lead_status", "hs_lastmodifieddate"];
+
+/** One record as text: its label and link, then its non-empty properties; `asked` are the ones the caller listed, always shown. */
+export function renderRow(
+  api: ExtensionApi,
+  object: ObjectName,
+  row: Row,
+  asked: string[] = [],
+): string {
   const lines = [
     `#${row.id} ${labelOf(object, row.properties)}`,
     `  ${recordLink(api, object, row.id)}`,
   ];
   for (const [name, value] of Object.entries(row.properties)) {
     if (IN_LABEL[object].includes(name)) continue;
-    if (name.startsWith("hs_") && name !== "hs_lead_status") continue;
-    if (["createdate", "lastmodifieddate"].includes(name)) continue;
+    if (name.startsWith("hs_") && !SHOWN_HS.includes(name) && !asked.includes(name)) continue;
     lines.push(`  ${name}: ${value}`);
   }
   return lines.join("\n");
