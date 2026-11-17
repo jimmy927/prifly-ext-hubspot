@@ -7,6 +7,10 @@ then every change first shows you a confirm card with exactly what changes
 (the object, the id, each property's old and new value); cancel, and the tool
 answers "Not done: you cancelled" and nothing is written.
 
+![The confirm card prifly shows before a HubSpot contact is updated, with each property's old and new value](docs/screenshot.png)
+
+_The confirm card for an update: each property's old and new value, shown before anything is written. The contact is invented._
+
 There is no UI besides that: no launcher, no chips. Settings → Extensions shows
 one status line ("Service key stored · portal 47907702 · read-only").
 
